@@ -123,9 +123,22 @@ Instructions:
         console.log(`\n--- Step ${step} ---`);
 
         // Observe State
+        // Observe State
         const url = page.url();
-        const ax = await page.accessibility.snapshot();
-        const stateDesc = `Current URL: ${url}\nAccessibility Tree: ${JSON.stringify(ax, null, 2)}`;
+        let ax = null;
+        try {
+            if (page.accessibility) {
+                ax = await page.accessibility.snapshot();
+            }
+        } catch (e) {
+            console.log('Accessibility snapshot failed, falling back...');
+        }
+
+        const stateDesc = `
+Current URL: ${url}
+Accessibility Tree: ${ax ? JSON.stringify(ax, null, 2) : 'Unavailable'}
+Page Title: ${await page.title()}
+`;
 
         messages.push({ role: 'user', content: stateDesc });
 
