@@ -29,8 +29,7 @@ async function runAgenticReview() {
         await page.screenshot({ path: screenshotPath });
         console.log(`Evidence captured at: ${screenshotPath}`);
 
-        // 3. Post findings back to GitHub (Simulated)
-        // In a real setup, we would use the Octokit library to post a PR comment.
+        // 3. Post findings back to GitHub
         const reviewComment = `
 ### 🤖 Agentic QA Review Result
 
@@ -42,12 +41,31 @@ I have verified the login functionality on the provided \`index.html\`.
 - Verify Success Message: ✅
 
 **Visual Evidence:**
-[Screenshot captured in artifacts]
+Evidence (screenshots) uploaded to Action artifacts.
 
 **Verdict:** LGTM! The login flow is functional.
 `;
         console.log('--- Review Summary ---');
         console.log(reviewComment);
+
+        if (process.env.PAT_TOKEN && process.env.PR_NUMBER) {
+            console.log('Posting comment to GitHub PR...');
+            const repo = process.env.GITHUB_REPOSITORY;
+            const prNumber = process.env.PR_NUMBER;
+            const url = `https://api.github.com/repos/${repo}/issues/${prNumber}/comments`;
+
+            await axios.post(url, {
+                body: reviewComment
+            }, {
+                headers: {
+                    'Authorization': `token ${process.env.PAT_TOKEN}`,
+                    'Accept': 'application/vnd.github.v3+json'
+                }
+            });
+            console.log('Comment posted successfully!');
+        } else {
+            console.log('PAT_TOKEN or PR_NUMBER not found. Skipping GitHub comment.');
+        }
 
     } catch (error) {
         console.error('Agentic Review Failed:', error);

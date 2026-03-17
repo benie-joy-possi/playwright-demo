@@ -27,10 +27,12 @@ jobs:
 
       - name: Run Agentic Review
         env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }} # Any OpenAI-compatible API key
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }} # e.g., https://api.openai.com/v1 or OpenRouter
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'glm-5' }} # Adjustable via GitHub Variables
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'glm-5' }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
         run: |
           mkdir -p screenshots
           node scripts/agentic_qa_reviewer.js
