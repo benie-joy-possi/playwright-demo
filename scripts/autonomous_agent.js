@@ -152,14 +152,20 @@ Instructions:
                         result = 'Wait completed';
                     } else if (name === 'finish_test') {
                         console.log(`TEST FINISHED [${args.verdict}]: ${args.comment}`);
+
+                        // Capture final evidence
+                        const screenshotPath = path.resolve(__dirname, '../screenshots/final_verdict.png');
+                        await page.screenshot({ path: screenshotPath });
+                        console.log(`Final evidence captured at: ${screenshotPath}`);
+
                         finished = true;
-                        result = 'Test finished successfully';
+                        result = 'Test finished successfully. Final screenshot taken.';
 
                         // Post findings if on GitHub
                         if (process.env.PAT_TOKEN && process.env.PR_NUMBER) {
                             const repo = process.env.GITHUB_REPOSITORY;
                             const prNumber = process.env.PR_NUMBER;
-                            const commentBody = `### 🤖 Autonomous Agent Review\n**Verdict: ${args.verdict}**\n\n${args.comment}\n\n*Review performed autonomously without hardcoded scripts.*`;
+                            const commentBody = `### 🤖 Autonomous Agent Review\n**Verdict: ${args.verdict}**\n\n${args.comment}\n\n*Final screenshot captured in artifacts.*`;
 
                             await axios.post(`https://api.github.com/repos/${repo}/issues/${prNumber}/comments`, {
                                 body: commentBody
