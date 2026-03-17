@@ -1,0 +1,46 @@
+name: Agentic PR Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+
+jobs:
+  agentic_review:
+    # Trigger on PR events or manual comment commands
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/agent-test'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npx playwright install --with-deps
+
+      - name: Run Agentic Review
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }} # Any OpenAI-compatible API key
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }} # e.g., https://api.openai.com/v1 or OpenRouter
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'glm-5' }} # Adjustable via GitHub Variables
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "Initializing Agentic Review using model: $LLM_MODEL" bridge
+          # node scripts/agentic_qa_reviewer.js --pr-id ${{ github.event.pull_request.number }}
+          # This step would trigger an agent that uses Playwright MCP to test the PR.
+
+      - name: Upload Test Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agentic-review-results
+          path: |
+            playwright-report/
+            screenshots/
