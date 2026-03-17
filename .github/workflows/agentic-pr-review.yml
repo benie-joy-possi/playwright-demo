@@ -1,3 +1,4 @@
+name: Agentic PR Review
 on:
   pull_request:
     types: [opened, synchronize]
@@ -9,7 +10,7 @@ jobs:
     # Trigger on PR events or manual comment commands like /agent-test
     if: |
       github.event_name == 'pull_request' ||
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '/agent-test'))
+      contains(github.event.comment.body, '/agent-test')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
