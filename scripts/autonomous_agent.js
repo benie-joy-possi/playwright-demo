@@ -63,6 +63,20 @@ const TOOLS = [
     {
         type: 'function',
         function: {
+            name: 'take_screenshot',
+            description: 'Captures a screenshot of the current page state.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    name: { type: 'string', description: 'Descriptive name for the screenshot (e.g. "inventory_page")' }
+                },
+                required: ['name']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'finish_test',
             description: 'Declares the test as finished with a final verdict.',
             parameters: {
@@ -159,6 +173,10 @@ Page Title: ${await page.title()}
                     } else if (name === 'fill') {
                         await page.fill(args.selector, args.text);
                         result = `Filled ${args.selector} with ${args.text}`;
+                    } else if (name === 'take_screenshot') {
+                        const sPath = path.resolve(__dirname, `../screenshots/${args.name || 'manual'}_${Date.now()}.png`);
+                        await page.screenshot({ path: sPath });
+                        result = `Screenshot captured at: ${sPath}`;
                     } else if (name === 'wait') {
                         if (args.ms) await page.waitForTimeout(args.ms);
                         if (args.selector) await page.waitForSelector(args.selector);
