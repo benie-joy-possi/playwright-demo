@@ -20,8 +20,18 @@ On GitHub, the [.github/workflows/agentic-pr-review.yml](file:///home/benie/Proj
 
 *   **Trigger**: Comments starting with `/agent-test` or new PR synchronizations.
 *   **Action**: The workflow spins up a Node.js environment, installs Playwright, and invokes your Agent.
-*   **Functional Verification**: The Agent is commanded to:
     > "Review the changes in this PR. Use Playwright to navigate to the app and confirm the modified features still work as expected. Report any regressions visually or functionally."
+
+## 4. How to Trigger via GitHub Comments
+You can invoke the agent on-demand by commenting on any Pull Request.
+
+*   **Default Command**: Type `/agent-test` in a PR comment.
+*   **Customization**: To change the trigger (e.g. to `@qwencoder /review`), modify the `if` condition in `.github/workflows/agentic-pr-review.yml`:
+    ```yaml
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/your-command'))
+    ```
 
 ## 4. Why Use an External Provider?
 Using an OpenAI-compatible provider (like OpenRouter) allows you to:
