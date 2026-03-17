@@ -39,6 +39,9 @@ Using an OpenAI-compatible provider (like OpenRouter) allows you to:
 *   **Unified API**: Connect multiple agents to the same endpoint.
 *   **Cost Management**: Monitor and limit usage across different providers from one dashboard.
 
+> [!IMPORTANT]
+> **Comment Triggers & Default Branch**: GitHub Actions only processes `issue_comment` events if the workflow file exists on your repository's **default branch** (usually `main`). If you add a new command-triggered workflow on a feature branch, it will not work until that file is pushed to `main`.
+
 ## 5. Security Best Practices
 > [!IMPORTANT]
 > Store your `LLM_API_KEY` in **GitHub Actions Secrets**. Use **GitHub Actions Variables** for non-sensitive data like `LLM_MODEL` or `LLM_BASE_URL`.
