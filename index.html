@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic QA Demo - E-Commerce</title>
+    <style>
+        body {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            background: #0f172a;
+            color: #f1f5f9;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            width: 400px;
+            border: 1px solid #334155;
+        }
+
+        h2 {
+            text-align: center;
+            color: #38bdf8;
+            margin-top: 0;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            color: white;
+            box-sizing: border-box;
+        }
+
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #334155;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #38bdf8;
+            color: #0f172a;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #7dd3fc;
+            transform: translateY(-1px);
+        }
+
+        button.add-btn {
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.8rem;
+        }
+
+        .nav-links {
+            margin-top: 1.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        #cart-status {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-weight: bold;
+            color: #fbbf24;
+        }
+
+        #message {
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .success {
+            color: #4ade80;
+        }
+
+        .error {
+            color: #f87171;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <h2>Secure Login</h2>
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" placeholder="tester">
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="password123">
+            </div>
+            <button id="login-btn" onclick="login()">Sign In</button>
+            <div id="login-message"></div>
+        </div>
+
+        <!-- Inventory Page -->
+        <div id="inventory-page" class="page">
+            <h2>Products</h2>
+            <div id="cart-status">Items in Cart: <span id="cart-count">0</span></div>
+            <div class="product-item">
+                <span>Space Helmet</span>
+                <button class="add-btn" onclick="addToCart('Helmet')">Add</button>
+            </div>
+            <div class="product-item">
+                <span>Moon Boots</span>
+                <button class="add-btn" onclick="addToCart('Boots')">Add</button>
+            </div>
+            <button onclick="goToCheckout()" style="margin-top: 1rem;">Go to Checkout</button>
+        </div>
+
+        <!-- Checkout Page -->
+        <div id="checkout-page" class="page">
+            <h2>Checkout</h2>
+            <div id="order-summary" style="margin-bottom: 1rem;"></div>
+            <button id="finish-btn" onclick="finish()">Confirm & Pay</button>
+            <div id="checkout-message"></div>
+        </div>
+    </div>
+
+    <script>
+        let cart = [];
+
+        function showPage(id) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            const msg = document.getElementById('login-message');
+            if (user === 'tester' && pass === 'password123') {
+                showPage('inventory-page');
+            } else {
+                msg.innerHTML = '<span class="error">Access Denied</span>';
+            }
+        }
+
+        function addToCart(item) {
+            cart.push(item);
+            document.getElementById('cart-count').innerText = cart.length;
+        }
+
+        function goToCheckout() {
+            if (cart.length === 0) {
+                alert("Cart is empty!");
+                return;
+            }
+            const summary = document.getElementById('order-summary');
+            summary.innerHTML = `<p>You are buying: <strong>${cart.join(', ')}</strong></p>`;
+            showPage('checkout-page');
+        }
+
+        function finish() {
+            const msg = document.getElementById('checkout-message');
+            msg.innerHTML = '<span class="success">Order #12345 Placed Successfully!</span>';
+            document.getElementById('finish-btn').style.display = 'none';
+        }
+    </script>
+</body>
+
+</html>
