@@ -108,18 +108,23 @@ async function main() {
 
         // 3. Run Tests
         const results = [];
-        const testUrlRequested = APP_BASE_URL || `file://${path.join(process.cwd(), 'index.html')}`;
+        const isLocalFile = !APP_BASE_URL;
+        const testUrlBase = APP_BASE_URL || `file://${path.resolve(process.cwd(), 'index.html')}`;
 
-        console.log(`\n🌐 Testing Target: ${testUrlRequested}`);
-        if (!APP_BASE_URL) console.log('   (No APP_BASE_URL found, falling back to local index.html)');
+        console.log(`\n🌐 Testing Target Base: ${testUrlBase}`);
+        if (isLocalFile) console.log('   (Local file mode: Sub-paths will be handled as the same local file)');
 
         for (const scenario of scenarios) {
             await postProgress(`> 🎭 Executing agentic test: ${scenario.title}`);
-            const result = await runTest(scenario, testUrlRequested);
+
+            // For local files, we just use the base file URL (no sub-paths)
+            const scenarioUrl = (isLocalFile || !scenario.url) ? testUrlBase : (scenario.url.startsWith('http') ? scenario.url : `${testUrlBase}${scenario.url}`);
+
+            const result = await runTest({ ...scenario, url: scenarioUrl }, testUrlBase);
             results.push({ ...scenario, ...result });
 
             if (result.screenshots.length > 0) {
-                console.log(`   📸 Screenshot captured: ${path.basename(result.screenshots[0])}`);
+                console.log(`   📸 Screenshot captured!`);
             }
         }
 
