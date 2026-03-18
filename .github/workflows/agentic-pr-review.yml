@@ -25,6 +25,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', github.event.issue.number) }}
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -34,7 +35,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          npm install @octokit/rest playwright openai
+          npm install
           npx playwright install --with-deps chromium
 
       - name: Run Agentic Reviewer
@@ -44,7 +45,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL || 'https://api.ai.camer.digital/v1' }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'glm-5' }}
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'gemini-2.5-flash-lite' }}
           APP_BASE_URL: ${{ vars.APP_BASE_URL }}
           ARTIFACTS_DIR: ${{ github.workspace }}/agent-artifacts
 

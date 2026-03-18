@@ -1,0 +1,10 @@
+{
+    "name": "playwright-demo-agent",
+    "version": "1.0.0",
+    "private": true,
+    "dependencies": {
+        "@octokit/rest": "^21.0.0",
+        "openai": "^4.0.0",
+        "playwright": "^1.40.0"
+    }
+}
