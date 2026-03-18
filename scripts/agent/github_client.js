@@ -8,7 +8,8 @@
 
 const { Octokit } = require('@octokit/rest');
 
-const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
+const token = process.env.PAT_TOKEN || process.env.GITHUB_TOKEN;
+const octokit = new Octokit({ auth: token });
 
 // Parse "owner/repo" from GITHUB_REPOSITORY env var
 function parseRepo() {
@@ -37,17 +38,17 @@ async function getPRData(prNumber) {
   const pr = prResp.data;
 
   return {
-    number:       prNumber,
-    title:        pr.title,
-    description:  pr.body || '',
-    headSha:      pr.head.sha,
-    baseSha:      pr.base.sha,
-    author:       pr.user.login,
-    headBranch:   pr.head.ref,
-    baseBranch:   pr.base.ref,
-    diff:         typeof diffResp.data === 'string' ? diffResp.data : '',
+    number: prNumber,
+    title: pr.title,
+    description: pr.body || '',
+    headSha: pr.head.sha,
+    baseSha: pr.base.sha,
+    author: pr.user.login,
+    headBranch: pr.head.ref,
+    baseBranch: pr.base.ref,
+    diff: typeof diffResp.data === 'string' ? diffResp.data : '',
     changedFiles: filesResp.data.map(f => `${f.status.toUpperCase().padEnd(8)} ${f.filename}`),
-    rawFiles:     filesResp.data,
+    rawFiles: filesResp.data,
   };
 }
 
@@ -74,7 +75,7 @@ async function updateComment(commentId, body) {
 
 async function deleteComment(commentId) {
   const { owner, repo } = parseRepo();
-  await octokit.issues.deleteComment({ owner, repo, comment_id: commentId }).catch(() => {});
+  await octokit.issues.deleteComment({ owner, repo, comment_id: commentId }).catch(() => { });
 }
 
 // ── Review (inline + summary) ─────────────────────────────────────────────────
@@ -89,7 +90,7 @@ async function submitReview(prNumber, headSha, body, event = 'COMMENT') {
   await octokit.pulls.createReview({
     owner, repo,
     pull_number: prNumber,
-    commit_id:   headSha,
+    commit_id: headSha,
     body,
     event,
   });
@@ -102,8 +103,8 @@ async function reactToComment(commentId, reaction) {
   await octokit.reactions.createForIssueComment({
     owner, repo,
     comment_id: commentId,
-    content:    reaction,
-  }).catch(() => {});   // reactions are best-effort
+    content: reaction,
+  }).catch(() => { });   // reactions are best-effort
 }
 
 // ── Check run (status indicator on commit) ────────────────────────────────────
@@ -112,8 +113,8 @@ async function createCheckRun(name, headSha) {
   const { owner, repo } = parseRepo();
   const { data } = await octokit.checks.create({
     owner, repo, name,
-    head_sha:   headSha,
-    status:     'in_progress',
+    head_sha: headSha,
+    status: 'in_progress',
     started_at: new Date().toISOString(),
   });
   return data.id;
@@ -123,10 +124,10 @@ async function completeCheckRun(checkRunId, { conclusion, title, summary }) {
   const { owner, repo } = parseRepo();
   await octokit.checks.update({
     owner, repo,
-    check_run_id:  checkRunId,
-    status:        'completed',
+    check_run_id: checkRunId,
+    status: 'completed',
     conclusion,
-    completed_at:  new Date().toISOString(),
+    completed_at: new Date().toISOString(),
     output: { title, summary },
   }).catch(err => console.warn('Check run update failed (non-fatal):', err.message));
 }
