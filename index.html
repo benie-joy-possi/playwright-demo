@@ -295,6 +295,10 @@
                     <div style="display: flex; gap: 8px; align-items: center; margin-top: 4px;">
                         <span class="badge" style="background: var(--primary); color: var(--bg); opacity: 0.8;">v2.1
                             Stable</span>
+                        <span id="last-login-info"
+                            style="font-size: 0.7rem; color: var(--text-muted); margin-left: 8px;">
+                            Session Active | Last Login: <span id="last-login-time">--:--</span>
+                        </span>
                         <span
                             style="font-size: 0.75rem; color: var(--success); display: flex; align-items: center; gap: 4px;">
                             <span
@@ -452,6 +456,8 @@
             const pass = document.getElementById('password').value;
             const msg = document.getElementById('login-message');
             if (user === 'tester' && pass === 'password123') {
+                const now = new Date().toLocaleTimeString();
+                document.getElementById('last-login-time').innerText = now;
                 showPage('inventory-page');
             } else {
                 msg.innerHTML = '<span style="color: #f87171;">Authentication Failed</span>';

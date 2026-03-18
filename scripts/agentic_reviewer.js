@@ -55,16 +55,33 @@ async function runTest(scenario, baseUrl) {
         console.log(`   🔗 Navigating to: ${fullUrl}`);
         await page.goto(fullUrl, { waitUntil: 'networkidle' });
 
-        // Execute steps
-        for (const step of scenario.steps) {
-            console.log(`   - Step: ${step}`);
-            await page.waitForTimeout(1000);
-        }
+        // Initial screenshot
+        const initialSS = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}_init.png`);
+        await page.screenshot({ path: initialSS });
+        evidence.screenshots.push(initialSS);
 
-        const ssPath = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}.png`);
-        console.log(`   📸 Capturing screenshot: ${ssPath}`);
-        await page.screenshot({ path: ssPath });
-        evidence.screenshots.push(ssPath);
+        // Execute steps
+        for (let i = 0; i < scenario.steps.length; i++) {
+            const step = scenario.steps[i];
+            if (typeof step === 'string') {
+                console.log(`   - Step: ${step}`);
+                await page.waitForTimeout(1000);
+            } else {
+                console.log(`   - Action: ${JSON.stringify(step)}`);
+                if (step.action === 'fill') {
+                    await page.fill(step.selector, step.value);
+                } else if (step.action === 'click') {
+                    await page.click(step.selector);
+                } else if (step.action === 'wait') {
+                    await page.waitForTimeout(step.ms || 1000);
+                }
+            }
+
+            // Take screenshot after each complex action to provide visual trace
+            const stepSS = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}_step_${i}.png`);
+            await page.screenshot({ path: stepSS });
+            evidence.screenshots.push(stepSS);
+        }
     } catch (err) {
         console.error(`   ❌ Scenario ${scenario.id} failed:`, err.message);
         evidence.status = 'failed';
@@ -94,7 +111,20 @@ async function main() {
 
         // 2. Generate Testing Plan
         await postProgress('> 🧠 Gemini is reasoning about your code changes...');
-        const planPrompt = `PR: ${pr.title}\nDIFF:\n${diff.slice(0, 10000)}\n\nAct as a Senior QA. Output ONLY a JSON array of up to 2 specific test scenarios (id, title, url, steps[]).`;
+        const planPrompt = `PR: ${pr.title}\nDIFF:\n${diff.slice(0, 10000)}\n\n
+        Act as a Senior QA. Output ONLY a JSON array of up to 2 specific test scenarios (id, title, url, steps[]).
+        
+        Selectors available:
+        - Login: #username, #password, #login-btn
+        - Navigation: .product-card, #cart-count, buttons with text.
+        
+        Step format:
+        - "description string"
+        - { "action": "fill", "selector": "#username", "value": "tester" }
+        - { "action": "click", "selector": "#login-btn" }
+        - { "action": "wait", "ms": 2000 }
+        
+        Generate a login flow test if appropriate.`;
         const planResp = await llmClient.chat.completions.create({
             model: TEXT_MODEL,
             messages: [{ role: 'user', content: planPrompt }],
