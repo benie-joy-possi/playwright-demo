@@ -48,7 +48,10 @@ async function runTest(scenario, baseUrl) {
     page.on('console', msg => evidence.consoleLogs.push(msg.text()));
 
     try {
-        const fullUrl = scenario.url.startsWith('http') ? scenario.url : `${baseUrl}${scenario.url}`;
+        const fullUrl = (scenario.url.startsWith('http') || scenario.url.startsWith('file://'))
+            ? scenario.url
+            : `${baseUrl}${scenario.url}`;
+
         console.log(`   🔗 Navigating to: ${fullUrl}`);
         await page.goto(fullUrl, { waitUntil: 'networkidle' });
 
