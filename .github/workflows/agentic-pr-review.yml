@@ -1,16 +1,17 @@
 name: Agentic PR Review
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
 
 jobs:
   agentic_review:
-    # Trigger on PR events or manual comment commands like /agent-test
+    # Trigger on PR events or manual comment commands like /agent-test or @qwen-code review
     if: |
       github.event_name == 'pull_request' ||
-      contains(github.event.comment.body, '/agent-test')
+      contains(github.event.comment.body, '/agent-test') ||
+      contains(github.event.comment.body, '@qwen-code review')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -23,10 +24,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 20
 
-      - name: Install dependencies
+      - name: Install Agent Dependencies
         run: |
+          cd scripts/agent
           npm install
           npx playwright install --with-deps
 
@@ -34,13 +36,18 @@ jobs:
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'glm-5' }}
+          LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen-coder-plus' }}
+          LLM_VL_MODEL: ${{ vars.LLM_VL_MODEL || 'qwen-vl-plus' }}
           PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
+          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
+          ARTIFACTS_DIR: ${{ github.workspace }}/agent-artifacts
         run: |
-          mkdir -p screenshots
-          node scripts/autonomous_agent.js
+          mkdir -p agent-artifacts
+          cd scripts/agent
+          npm run review
 
       - name: Upload Test Artifacts
         uses: actions/upload-artifact@v4
@@ -48,5 +55,4 @@ jobs:
         with:
           name: agentic-review-results
           path: |
-            playwright-report/
-            screenshots/
+            agent-artifacts/
