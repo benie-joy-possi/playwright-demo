@@ -112,11 +112,18 @@ async function main() {
         // 2. Generate Testing Plan
         await postProgress('> 🧠 Gemini is reasoning about your code changes...');
         const planPrompt = `PR: ${pr.title}\nDIFF:\n${diff.slice(0, 10000)}\n\n
-        Act as a Senior QA. Output ONLY a JSON array of up to 2 specific test scenarios (id, title, url, steps[]).
+        Act as a Senior QA. Output ONLY a JSON array of up to 3 specific test scenarios (id, title, url, steps[]).
+        
+        CRITICAL: 
+        1. Always include one "Full System Walkthrough" scenario that covers the entire 'Golden Path': 
+           Login -> View Product -> Add to Cart -> Checkout -> Success.
+        2. Other scenarios should focus specifically on the PR diff changes.
         
         Selectors available:
         - Login: #username, #password, #login-btn
-        - Navigation: .product-card, #cart-count, buttons with text.
+        - Products: #product-helmet, #product-boots, #buy-btn, #checkout-btn
+        - Navbar: #cart-count, #last-login-time
+        - Checkout: #promo-code, #promo-apply, #card-num, #pay-btn
         
         Step format:
         - "description string"
@@ -124,7 +131,7 @@ async function main() {
         - { "action": "click", "selector": "#login-btn" }
         - { "action": "wait", "ms": 2000 }
         
-        Generate a login flow test if appropriate.`;
+        Each action triggers a screenshot. Generate high-depth scenarios.`;
         const planResp = await llmClient.chat.completions.create({
             model: TEXT_MODEL,
             messages: [{ role: 'user', content: planPrompt }],
