@@ -1,8 +1,6 @@
 name: 🤖 Qwen Code Agentic Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   issue_comment:
     types: [created]
 
@@ -45,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL || 'https://api.ai.camer.digital/v1' }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'gemini-2.5-flash-lite' }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL || 'gemini-2.5-flash' }}
           APP_BASE_URL: ${{ vars.APP_BASE_URL }}
           ARTIFACTS_DIR: ${{ github.workspace }}/agent-artifacts
 
@@ -54,4 +52,4 @@ jobs:
         if: always()
         with:
           name: agentic-review-artifacts
-          path: agent-artifacts/
+          path: ${{ github.workspace }}/agent-artifacts/
