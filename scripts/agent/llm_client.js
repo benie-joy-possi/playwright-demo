@@ -8,27 +8,37 @@
  */
 
 const OpenAI = require('openai');
-const fs     = require('fs');
-const path   = require('path');
+const fs = require('fs');
+const path = require('path');
 
 const client = new OpenAI({
-  apiKey:  process.env.LLM_API_KEY,
-  baseURL: process.env.LLM_BASE_URL || 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  apiKey: process.env.LLM_API_KEY,
+  baseURL: process.env.LLM_BASE_URL || 'https://api.ai.camer.digital/v1',
 });
 
-const TEXT_MODEL   = process.env.LLM_MODEL    || 'qwen-coder-plus';
-const VISION_MODEL = process.env.LLM_VL_MODEL || 'qwen-vl-plus';
+const TEXT_MODEL = process.env.LLM_MODEL || 'gemini-2.5-flash';
+const VISION_MODEL = process.env.LLM_VL_MODEL || 'gemini-2.5-flash';
+
+console.log(`🤖 LLM CONFIG: Model=${TEXT_MODEL}, Vision=${VISION_MODEL}, BaseURL=${client.baseURL}`);
 
 // ── Low-level chat helpers ────────────────────────────────────────────────────
 
 async function chat(messages, { model = TEXT_MODEL, temperature = 0.2, maxTokens = 4096 } = {}) {
-  const resp = await client.chat.completions.create({
-    model,
-    messages,
-    temperature,
-    max_tokens: maxTokens,
-  });
-  return resp.choices[0].message.content;
+  try {
+    const resp = await client.chat.completions.create({
+      model,
+      messages,
+      temperature,
+      max_tokens: maxTokens,
+    });
+    return resp.choices[0].message.content;
+  } catch (err) {
+    console.error(`❌ LLM Call Failed [Model: ${model}]: ${err.message}`);
+    if (err.status === 404) {
+      console.error(`💡 Tip: Check if the model "${model}" is supported by your endpoint: ${client.baseURL}`);
+    }
+    throw err;
+  }
 }
 
 async function chatWithImages(messages, { temperature = 0.3, maxTokens = 4096 } = {}) {
@@ -100,7 +110,7 @@ ${diff.slice(0, 8000)}`;
 
   const raw = await chat([
     { role: 'system', content: systemPrompt },
-    { role: 'user',   content: userPrompt   },
+    { role: 'user', content: userPrompt },
   ], { temperature: 0.1 });
 
   try {
@@ -127,7 +137,7 @@ async function generateReviewComment(prData, testResults) {
   let screenshotAnalysis = '';
   if (hasScreenshots) {
     const visionMessages = [];
-    const imageContents  = [];
+    const imageContents = [];
 
     for (const result of testResults) {
       if (!result.screenshots?.length) continue;
@@ -138,7 +148,7 @@ async function generateReviewComment(prData, testResults) {
       for (const ss of result.screenshots.slice(0, 3)) {
         if (fs.existsSync(ss)) {
           imageContents.push({
-            type:      'image_url',
+            type: 'image_url',
             image_url: { url: encodeImage(ss) },
           });
         }
@@ -148,7 +158,7 @@ async function generateReviewComment(prData, testResults) {
     if (imageContents.length > 0) {
       const visionResp = await chatWithImages([
         {
-          role:    'system',
+          role: 'system',
           content: 'You are a QA engineer analysing browser screenshots from automated tests. Describe what you see: UI state, errors, unexpected behaviour, visual regressions. Be specific. Output plain text.',
         },
         { role: 'user', content: imageContents },
@@ -210,7 +220,7 @@ ${screenshotAnalysis || '(no screenshots available)'}`;
 
   return chat([
     { role: 'system', content: systemPrompt },
-    { role: 'user',   content: userPrompt   },
+    { role: 'user', content: userPrompt },
   ], { temperature: 0.3, maxTokens: 6000 });
 }
 
