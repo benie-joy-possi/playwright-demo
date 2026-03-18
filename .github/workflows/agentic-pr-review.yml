@@ -1,58 +1,200 @@
-name: Agentic PR Review
+name: 🤖 Qwen Code Agentic PR Review
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+
   issue_comment:
     types: [created]
 
+# ── Prevent duplicate runs on the same PR ──────────────────────────────────────
+concurrency:
+  group: agentic-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+# ── Minimum permissions needed ────────────────────────────────────────────────
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
-  agentic_review:
-    # Trigger on PR events or manual comment commands like /agent-test or @qwen-code review
-    if: |
-      github.event_name == 'pull_request' ||
-      contains(github.event.comment.body, '/agent-test') ||
-      contains(github.event.comment.body, '@qwen-code review')
+  # ── Gate: decide whether this run should actually proceed ──────────────────
+  gate:
+    name: Check Trigger Condition
     runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      pr_number:  ${{ steps.check.outputs.pr_number }}
+      trigger:    ${{ steps.check.outputs.trigger }}
     steps:
-      - name: Checkout Code
+      - name: Evaluate trigger
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const eventName = context.eventName;
+
+            // ── Trigger 1: new / updated PR ───────────────────────────────
+            if (eventName === 'pull_request') {
+              core.setOutput('should_run', 'true');
+              core.setOutput('pr_number',  context.payload.pull_request.number.toString());
+              core.setOutput('trigger',    'pull_request');
+              return;
+            }
+
+            // ── Trigger 2: comment command "@qwen-code review" ────────────
+            if (eventName === 'issue_comment') {
+              const body  = context.payload.comment?.body ?? '';
+              const isPR  = !!context.payload.issue?.pull_request;
+              const isCmd = /^\s*@qwen-code\s+review\s*$/im.test(body);
+
+              if (isPR && isCmd) {
+                core.setOutput('should_run', 'true');
+                core.setOutput('pr_number',  context.payload.issue.number.toString());
+                core.setOutput('trigger',    'comment');
+              } else {
+                core.setOutput('should_run', 'false');
+              }
+              return;
+            }
+
+            core.setOutput('should_run', 'false');
+
+  # ── Main review job ────────────────────────────────────────────────────────
+  review:
+    name: Agentic Review
+    needs: gate
+    if: needs.gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      PR_NUMBER:      ${{ needs.gate.outputs.pr_number }}
+      TRIGGER:        ${{ needs.gate.outputs.trigger }}
+      LLM_API_KEY:    ${{ secrets.LLM_API_KEY }}
+      LLM_BASE_URL:   ${{ secrets.LLM_BASE_URL }}
+      LLM_MODEL:      ${{ secrets.LLM_MODEL || 'glm-5' }}
+      LLM_VL_MODEL:   ${{ vars.LLM_VL_MODEL || 'glm-5' }}
+      PAT_TOKEN:   ${{ secrets.PAT_TOKEN }}
+      APP_BASE_URL:   ${{ vars.APP_BASE_URL || '' }}
+      MAX_SCENARIOS:  ${{ vars.MAX_SCENARIOS || '5' }}
+      NODE_ENV:       production
+
+    steps:
+      # ── 1. Checkout the PR head ──────────────────────────────────────────
+      - name: Checkout PR head
         uses: actions/checkout@v4
         with:
-          # If triggered by a comment, we must explicitly checkout the PR's head ref
-          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || '' }}
+          ref: ${{ format('refs/pull/{0}/head', needs.gate.outputs.pr_number) }}
           fetch-depth: 0
-      
+
+      # ── 2. React to the trigger comment so the user gets feedback ─────────
+      - name: Acknowledge trigger (comment-driven only)
+        if: env.TRIGGER == 'comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner:      context.repo.owner,
+              repo:       context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content:    'eyes',
+            });
+
+      # ── 3. Post "in progress" comment ─────────────────────────────────────
+      - name: Post "review in progress" notice
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.issues.createComment({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: parseInt(process.env.PR_NUMBER),
+              body: [
+                '## 🤖 Qwen Code Review — In Progress',
+                '',
+                '> Analysing your changes and running agentic Playwright tests...',
+                '> This comment will be updated when the review is complete.',
+                '',
+                `⏱️ Started at: ${new Date().toUTCString()}`,
+              ].join('\n'),
+            });
+            // Persist the comment ID so we can update it later
+            const fs = require('fs');
+            fs.writeFileSync('progress_comment_id.txt', data.id.toString());
+
+      # ── 4. Node setup with npm cache ──────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: scripts/agent/package.json
 
-      - name: Install Agent Dependencies
-        run: |
-          cd scripts/agent
-          npm install
-          npx playwright install --with-deps
+      # ── 5. Install agent dependencies ─────────────────────────────────────
+      - name: Install agent dependencies
+        working-directory: scripts/agent
+        run: npm install
 
-      - name: Run Agentic Review
+      # ── 6. Cache Playwright browsers ──────────────────────────────────────
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('scripts/agent/package.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        working-directory: scripts/agent
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps (cache hit)
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        working-directory: scripts/agent
+        run: npx playwright install-deps chromium
+
+      # ── 7. Run the agentic review ─────────────────────────────────────────
+      - name: Run agentic review
+        id: agent
+        working-directory: scripts/agent
+        run: node autonomous_agent.js
         env:
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_MODEL: ${{ vars.LLM_MODEL || 'qwen-coder-plus' }}
-          LLM_VL_MODEL: ${{ vars.LLM_VL_MODEL || 'qwen-vl-plus' }}
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number }}
-          APP_BASE_URL: ${{ vars.APP_BASE_URL }}
-          ARTIFACTS_DIR: ${{ github.workspace }}/agent-artifacts
-        run: |
-          mkdir -p agent-artifacts
-          cd scripts/agent
-          npm run review
+          PROGRESS_COMMENT_ID_FILE: ${{ github.workspace }}/progress_comment_id.txt
+          ARTIFACTS_DIR:            ${{ github.workspace }}/agent-artifacts
+          WORKSPACE:                ${{ github.workspace }}
 
-      - name: Upload Test Artifacts
+      # ── 8. Upload all artifacts ───────────────────────────────────────────
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: agentic-review-results
-          path: |
-            agent-artifacts/
+          name: agentic-review-pr-${{ needs.gate.outputs.pr_number }}
+          path: agent-artifacts/
+          retention-days: 14
+
+      # ── 9. Update progress comment to failure if agent crashed ────────────
+      - name: Mark review failed (agent error)
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let commentId;
+            try { commentId = parseInt(fs.readFileSync('progress_comment_id.txt', 'utf8')); } catch {}
+            if (!commentId) return;
+
+            await github.rest.issues.updateComment({
+              owner:      context.repo.owner,
+              repo:       context.repo.repo,
+              comment_id: commentId,
+              body: [
+                '## 🤖 Qwen Code Review — ❌ Agent Error',
+                '',
+                'The agentic review encountered an unexpected error.',
+                'Check the [workflow run](' +
+                  `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}` +
+                ') for details.',
+              ].join('\n'),
+            });
