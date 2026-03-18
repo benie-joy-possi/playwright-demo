@@ -54,4 +54,4 @@ jobs:
         if: always()
         with:
           name: agentic-review-artifacts
-          path: agent-artifacts/
+          path: ${{ github.workspace }}/agent-artifacts/

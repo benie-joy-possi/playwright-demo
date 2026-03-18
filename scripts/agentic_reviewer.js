@@ -106,11 +106,18 @@ async function main() {
 
         // 3. Run Tests
         const results = [];
-        if (APP_BASE_URL) {
-            for (const scenario of scenarios) {
-                await postProgress(`> 🎭 Executing agentic test: ${scenario.title}`);
-                const result = await runTest(scenario, APP_BASE_URL);
-                results.push({ ...scenario, ...result });
+        const testUrlRequested = APP_BASE_URL || `file://${path.join(process.cwd(), 'index.html')}`;
+
+        console.log(`\n🌐 Testing Target: ${testUrlRequested}`);
+        if (!APP_BASE_URL) console.log('   (No APP_BASE_URL found, falling back to local index.html)');
+
+        for (const scenario of scenarios) {
+            await postProgress(`> 🎭 Executing agentic test: ${scenario.title}`);
+            const result = await runTest(scenario, testUrlRequested);
+            results.push({ ...scenario, ...result });
+
+            if (result.screenshots.length > 0) {
+                console.log(`   📸 Screenshot captured: ${path.basename(result.screenshots[0])}`);
             }
         }
 
