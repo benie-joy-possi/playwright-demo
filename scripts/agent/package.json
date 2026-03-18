@@ -1,0 +1,20 @@
+{
+  "name": "qwen-agentic-reviewer",
+  "version": "1.0.0",
+  "description": "Agentic PR reviewer powered by Qwen Code + Playwright",
+  "type": "commonjs",
+  "private": true,
+  "scripts": {
+    "review": "node autonomous_agent.js",
+    "test:runner": "node playwright_runner.js"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.0.2",
+    "@playwright/test": "^1.49.0",
+    "playwright": "^1.49.0",
+    "openai": "^4.77.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
