@@ -16,8 +16,8 @@ const client = new OpenAI({
   baseURL: process.env.LLM_BASE_URL || 'https://api.ai.camer.digital/v1',
 });
 
-const TEXT_MODEL = process.env.LLM_MODEL || 'gemini-2.5-flash';
-const VISION_MODEL = process.env.LLM_VL_MODEL || 'gemini-2.5-flash';
+const TEXT_MODEL = process.env.LLM_MODEL || 'gemini-2.5-flash-lite';
+const VISION_MODEL = process.env.LLM_VL_MODEL || 'gemini-2.5-flash-lite';
 
 console.log(`🤖 LLM CONFIG: Model=${TEXT_MODEL}, Vision=${VISION_MODEL}, BaseURL=${client.baseURL}`);
 

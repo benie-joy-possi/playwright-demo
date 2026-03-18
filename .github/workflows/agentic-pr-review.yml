@@ -17,6 +17,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  checks: write
 
 jobs:
   # ── Gate: decide whether this run should actually proceed ──────────────────
@@ -74,8 +75,8 @@ jobs:
       TRIGGER:        ${{ needs.gate.outputs.trigger }}
       LLM_API_KEY:    ${{ secrets.LLM_API_KEY }}
       LLM_BASE_URL:   ${{ secrets.LLM_BASE_URL }}
-      LLM_MODEL:      ${{ vars.LLM_MODEL || 'qwen-coder-plus' }}
-      LLM_VL_MODEL:   ${{ vars.LLM_VL_MODEL || 'qwen-vl-plus' }}
+      LLM_MODEL:      ${{ vars.LLM_MODEL || 'gemini-2.5-flash-lite' }}
+      LLM_VL_MODEL:   ${{ vars.LLM_VL_MODEL || 'gemini-2.5-flash-lite' }}
       PAT_TOKEN:      ${{ secrets.PAT_TOKEN }}
       GITHUB_TOKEN:   ${{ secrets.GITHUB_TOKEN }}
       APP_BASE_URL:   ${{ vars.APP_BASE_URL || '' }}
