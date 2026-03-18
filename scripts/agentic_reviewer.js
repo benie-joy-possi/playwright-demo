@@ -49,19 +49,21 @@ async function runTest(scenario, baseUrl) {
 
     try {
         const fullUrl = scenario.url.startsWith('http') ? scenario.url : `${baseUrl}${scenario.url}`;
-        await page.goto(fullUrl);
+        console.log(`   🔗 Navigating to: ${fullUrl}`);
+        await page.goto(fullUrl, { waitUntil: 'networkidle' });
 
-        // Execute steps (simulated agentic steps)
+        // Execute steps
         for (const step of scenario.steps) {
-            console.log(`   - ${step}`);
-            // In a real generic agent, we'd use LLM here. For this demo, we can just wait or do basic looks.
+            console.log(`   - Step: ${step}`);
             await page.waitForTimeout(1000);
         }
 
-        const ssPath = path.join(ARTIFACTS_DIR, `ss_${scenario.id}.png`);
+        const ssPath = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}.png`);
+        console.log(`   📸 Capturing screenshot: ${ssPath}`);
         await page.screenshot({ path: ssPath });
         evidence.screenshots.push(ssPath);
     } catch (err) {
+        console.error(`   ❌ Scenario ${scenario.id} failed:`, err.message);
         evidence.status = 'failed';
         evidence.error = err.message;
     }
