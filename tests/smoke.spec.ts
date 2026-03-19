@@ -5,7 +5,7 @@ const basePath = process.env.GITHUB_WORKSPACE || process.cwd();
 test.describe('Smoke Tests', () => {
   test('homepage loads successfully', async ({ page }) => {
     await page.goto(`file://${basePath}/index.html`);
-    await expect(page).toHaveTitle(/Marketplace/);
+    await expect(page).toHaveTitle(/Nebula Market/);
   });
 
   test('login form is present', async ({ page }) => {
