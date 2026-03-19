@@ -48,20 +48,42 @@ async function runTest(scenario, baseUrl) {
     page.on('console', msg => evidence.consoleLogs.push(msg.text()));
 
     try {
-        const fullUrl = scenario.url.startsWith('http') ? scenario.url : `${baseUrl}${scenario.url}`;
-        await page.goto(fullUrl);
+        const fullUrl = (scenario.url.startsWith('http') || scenario.url.startsWith('file://'))
+            ? scenario.url
+            : `${baseUrl}${scenario.url}`;
 
-        // Execute steps (simulated agentic steps)
-        for (const step of scenario.steps) {
-            console.log(`   - ${step}`);
-            // In a real generic agent, we'd use LLM here. For this demo, we can just wait or do basic looks.
-            await page.waitForTimeout(1000);
+        console.log(`   🔗 Navigating to: ${fullUrl}`);
+        await page.goto(fullUrl, { waitUntil: 'networkidle' });
+
+        // Initial screenshot
+        const initialSS = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}_init.png`);
+        await page.screenshot({ path: initialSS });
+        evidence.screenshots.push(initialSS);
+
+        // Execute steps
+        for (let i = 0; i < scenario.steps.length; i++) {
+            const step = scenario.steps[i];
+            if (typeof step === 'string') {
+                console.log(`   - Step: ${step}`);
+                await page.waitForTimeout(1000);
+            } else {
+                console.log(`   - Action: ${JSON.stringify(step)}`);
+                if (step.action === 'fill') {
+                    await page.fill(step.selector, step.value);
+                } else if (step.action === 'click') {
+                    await page.click(step.selector);
+                } else if (step.action === 'wait') {
+                    await page.waitForTimeout(step.ms || 1000);
+                }
+            }
+
+            // Take screenshot after each complex action to provide visual trace
+            const stepSS = path.resolve(ARTIFACTS_DIR, `ss_${scenario.id}_step_${i}.png`);
+            await page.screenshot({ path: stepSS });
+            evidence.screenshots.push(stepSS);
         }
-
-        const ssPath = path.join(ARTIFACTS_DIR, `ss_${scenario.id}.png`);
-        await page.screenshot({ path: ssPath });
-        evidence.screenshots.push(ssPath);
     } catch (err) {
+        console.error(`   ❌ Scenario ${scenario.id} failed:`, err.message);
         evidence.status = 'failed';
         evidence.error = err.message;
     }
@@ -89,7 +111,27 @@ async function main() {
 
         // 2. Generate Testing Plan
         await postProgress('> 🧠 Gemini is reasoning about your code changes...');
-        const planPrompt = `PR: ${pr.title}\nDIFF:\n${diff.slice(0, 10000)}\n\nAct as a Senior QA. Output ONLY a JSON array of up to 2 specific test scenarios (id, title, url, steps[]).`;
+        const planPrompt = `PR: ${pr.title}\nDIFF:\n${diff.slice(0, 10000)}\n\n
+        Act as a Senior QA. Output ONLY a JSON array of up to 3 specific test scenarios (id, title, url, steps[]).
+        
+        CRITICAL: 
+        1. Always include one "Full System Walkthrough" scenario that covers the entire 'Golden Path': 
+           Login -> View Product -> Add to Cart -> Checkout -> Success.
+        2. Other scenarios should focus specifically on the PR diff changes.
+        
+        Selectors available:
+        - Login: #username, #password, #login-btn
+        - Products: #product-helmet, #product-boots, #buy-btn, #checkout-btn
+        - Navbar: #cart-count, #last-login-time
+        - Checkout: #promo-code, #promo-apply, #card-num, #pay-btn
+        
+        Step format:
+        - "description string"
+        - { "action": "fill", "selector": "#username", "value": "tester" }
+        - { "action": "click", "selector": "#login-btn" }
+        - { "action": "wait", "ms": 2000 }
+        
+        Each action triggers a screenshot. Generate high-depth scenarios.`;
         const planResp = await llmClient.chat.completions.create({
             model: TEXT_MODEL,
             messages: [{ role: 'user', content: planPrompt }],
@@ -106,11 +148,23 @@ async function main() {
 
         // 3. Run Tests
         const results = [];
-        if (APP_BASE_URL) {
-            for (const scenario of scenarios) {
-                await postProgress(`> 🎭 Executing agentic test: ${scenario.title}`);
-                const result = await runTest(scenario, APP_BASE_URL);
-                results.push({ ...scenario, ...result });
+        const isLocalFile = !APP_BASE_URL;
+        const testUrlBase = APP_BASE_URL || `file://${path.resolve(process.cwd(), 'index.html')}`;
+
+        console.log(`\n🌐 Testing Target Base: ${testUrlBase}`);
+        if (isLocalFile) console.log('   (Local file mode: Sub-paths will be handled as the same local file)');
+
+        for (const scenario of scenarios) {
+            await postProgress(`> 🎭 Executing agentic test: ${scenario.title}`);
+
+            // For local files, we just use the base file URL (no sub-paths)
+            const scenarioUrl = (isLocalFile || !scenario.url) ? testUrlBase : (scenario.url.startsWith('http') ? scenario.url : `${testUrlBase}${scenario.url}`);
+
+            const result = await runTest({ ...scenario, url: scenarioUrl }, testUrlBase);
+            results.push({ ...scenario, ...result });
+
+            if (result.screenshots.length > 0) {
+                console.log(`   📸 Screenshot captured!`);
             }
         }
 
